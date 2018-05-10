@@ -16,6 +16,7 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Looper;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Gravity;
@@ -163,16 +164,11 @@ public class Slideshow extends ListActivity implements InitListener {
         mVoicer = voicer;
         mVoicer.register(this);
         mVoicer.addVoicerListener(new Toaster(this));
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    mVoicer.addVoicerListener(new VirtualAssistant(Slideshow.this));
-                } catch (SpeakerException | InterruptedException ex) {
-                    Log.e(getClass().getName(), null, ex);
-                }
-            }
-        }).start();
+        try {
+            mVoicer.addVoicerListener(new VirtualAssistant(Slideshow.this));
+        } catch (SpeakerException | InterruptedException ex) {
+            Log.e(getClass().getName(), null, ex);
+        }
     }
 
     // Class for implementing the "ViewHolder pattern"
