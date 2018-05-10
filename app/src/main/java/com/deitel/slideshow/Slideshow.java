@@ -17,6 +17,7 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -33,13 +34,23 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class Slideshow extends ListActivity {
+import com.miyagilabs.voicer.InitListener;
+import com.miyagilabs.voicer.Voicer;
+import com.miyagilabs.voicer.VoicerFactory;
+import com.miyagilabs.voicer.annotation.Voice;
+import com.miyagilabs.voicer.tts.SpeakerException;
+import com.miyagilabs.voicer.tts.VirtualAssistant;
+import com.miyagilabs.voicer.util.VoicerListener;
+import com.miyagilabs.voicer.widget.Toaster;
+
+public class Slideshow extends ListActivity implements InitListener {
     // used when adding slideshow name as an extra to an Intent
     public static final String NAME_EXTRA = "NAME";
 
     static List<SlideshowInfo> slideshowList; // List of slideshows
     private ListView slideshowListView; // this ListActivity's ListView
     private SlideshowAdapter slideshowAdapter; // adapter for the ListView
+    private Voicer mVoicer;
 
     // called when the activity is first created
     @Override
@@ -60,6 +71,18 @@ public class Slideshow extends ListActivity {
         builder.show();
     } // end method onCreate
 
+    @Override
+    protected void onResume() {
+        VoicerFactory.fakeVoicer(this, this);
+        super.onResume();
+    }
+
+    @Override
+    protected void onPause() {
+        mVoicer.shutdown();
+        super.onPause();
+    }
+
     // create the Activity's menu from a menu resource XML file
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -75,6 +98,12 @@ public class Slideshow extends ListActivity {
     // handle choice from options menu
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+        newSlideShow();
+        return super.onOptionsItemSelected(item); // call super's method
+    } // end method onOptionsItemSelected
+
+    @Voice(commands = "new slideshow")
+    private void newSlideShow() {
         // get a reference to the LayoutInflater service
         LayoutInflater inflater = (LayoutInflater) getSystemService(
                 Context.LAYOUT_INFLATER_SERVICE);
@@ -119,9 +148,7 @@ public class Slideshow extends ListActivity {
 
         inputDialog.setNegativeButton(R.string.button_cancel, null);
         inputDialog.show();
-
-        return super.onOptionsItemSelected(item); // call super's method
-    } // end method onOptionsItemSelected
+    }
 
     // refresh ListView after slideshow editing is complete
     @Override
@@ -130,6 +157,23 @@ public class Slideshow extends ListActivity {
         super.onActivityResult(requestCode, resultCode, data);
         slideshowAdapter.notifyDataSetChanged(); // refresh the adapter
     } // end method onActivityResult
+
+    @Override
+    public void onInit(Voicer voicer, int status) {
+        mVoicer = voicer;
+        mVoicer.register(this);
+        mVoicer.addVoicerListener(new Toaster(this));
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    mVoicer.addVoicerListener(new VirtualAssistant(Slideshow.this));
+                } catch (SpeakerException | InterruptedException ex) {
+                    Log.e(getClass().getName(), null, ex);
+                }
+            }
+        }).start();
+    }
 
     // Class for implementing the "ViewHolder pattern"
     // for better ListView performance
